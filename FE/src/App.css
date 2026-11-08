@@ -66,6 +66,154 @@
      react-icons same nadadzą im odpowiedni kolor z currentColor */
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 9, 17, 0.68);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-panel {
+  width: min(100%, 520px);
+  max-height: min(720px, 100%);
+  overflow-y: auto;
+  padding: 32px;
+  border: 1px solid rgba(192, 211, 240, 0.16);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at top left, rgba(69, 108, 163, 0.16), transparent 55%),
+    #151d2b;
+  color: #eef4ff;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.modal-eyebrow {
+  margin: 0 0 10px;
+  color: #8dbbfa;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.modal-title {
+  margin: 0;
+  color: #f5f8ff;
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.modal-description {
+  margin: 12px 0 24px;
+  color: #aebbd0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.controls-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.controls-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(192, 211, 240, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.control-action {
+  color: #eaf1ff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.control-input {
+  color: #aebbd0;
+  font-size: 0.88rem;
+  text-align: right;
+}
+
+.upload-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  border: 1px dashed rgba(141, 187, 250, 0.45);
+  border-radius: 16px;
+  background: rgba(141, 187, 250, 0.045);
+  text-align: center;
+}
+
+.upload-placeholder-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  place-items: center;
+  border: 1px solid rgba(141, 187, 250, 0.25);
+  border-radius: 14px;
+  background: rgba(141, 187, 250, 0.1);
+  color: #a8ccff;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.upload-placeholder-title {
+  color: #eaf1ff;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.upload-placeholder-description {
+  color: #91a1b9;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.modal-close-button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(141, 187, 250, 0.28);
+  border-radius: 10px;
+  background: #315783;
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.modal-close-button:hover {
+  transform: translateY(-1px);
+  background: #3b699d;
+}
+
+.modal-close-button:focus-visible {
+  outline: 2px solid #a8ccff;
+  outline-offset: 3px;
+}
+
 /* .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -250,3 +398,19 @@
     border-right-color: var(--border);
   }
 } */
+
+@media (max-width: 520px) {
+  .modal-backdrop {
+    padding: 16px;
+  }
+
+  .modal-panel {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  .control-input {
+    width: 100%;
+    text-align: left;
+  }
+}

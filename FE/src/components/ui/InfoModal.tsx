@@ -7,27 +7,44 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
   if (!isOpen) return null; // Jeśli isOpen to false, nie renderuj niczego
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      backgroundColor: '#fff',
-      color: '#000',
-      padding: '30px',
-      borderRadius: '8px',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-      zIndex: 20,
-      textAlign: 'center'
-    }}>
-      <h2>Hello, world</h2>
-      <p>Tu będzie instrukcja</p>
-      <button 
-        onClick={onClose}
-        style={{ marginTop: '20px', padding: '8px 16px', cursor: 'pointer' }}
+    <div className="modal-backdrop" onClick={onClose}>
+      <section
+        className="modal-panel info-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="info-title"
+        onClick={(event) => event.stopPropagation()}
       >
-        Zamknij
-      </button>
+        <p className="modal-eyebrow">Sterowanie</p>
+        <h2 className="modal-title" id="info-title">
+          Nawigacja po scenie
+        </h2>
+        <p className="modal-description">
+          Użyj myszy lub ekranu dotykowego, aby obejrzeć chmurę punktów z
+          różnych stron.
+        </p>
+
+        <ul className="controls-list">
+          <li>
+            <span className="control-action">Obrót</span>
+            <span className="control-input">Przeciągnij lewym przyciskiem myszy</span>
+          </li>
+          <li>
+            <span className="control-action">Przesuwanie</span>
+            <span className="control-input">Przeciągnij prawym przyciskiem</span>
+          </li>
+          <li>
+            <span className="control-action">Przybliżanie</span>
+            <span className="control-input">Użyj kółka myszy</span>
+          </li>
+        </ul>
+
+        <div className="modal-footer">
+          <button className="modal-close-button" onClick={onClose}>
+            Zamknij
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

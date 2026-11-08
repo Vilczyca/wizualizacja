@@ -7,27 +7,36 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
   if (!isOpen) return null; // Jeśli isOpen to false, nie renderuj niczego
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      backgroundColor: '#fff',
-      color: '#000',
-      padding: '30px',
-      borderRadius: '8px',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-      zIndex: 20,
-      textAlign: 'center'
-    }}>
-      <h2>Hello, world</h2>
-      <p>Tu będzie formularz</p>
-      <button 
-        onClick={onClose}
-        style={{ marginTop: '20px', padding: '8px 16px', cursor: 'pointer' }}
+    <div className="modal-backdrop" onClick={onClose}>
+      <section
+        className="modal-panel upload-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-title"
+        onClick={(event) => event.stopPropagation()}
       >
-        Zamknij
-      </button>
+        <p className="modal-eyebrow">Import danych</p>
+        <h2 className="modal-title" id="upload-title">
+          Dodaj dane
+        </h2>
+        <p className="modal-description">TODO</p>
+
+        {/* <div className="upload-placeholder">
+          <span className="upload-placeholder-icon" aria-hidden="true">
+            +
+          </span>
+          <span className="upload-placeholder-title">Obszar dodawania plików</span>
+          <span className="upload-placeholder-description">
+            Obsługa wczytywania plików będzie dostępna wkrótce.
+          </span>
+        </div> */}
+
+        <div className="modal-footer">
+          <button className="modal-close-button" onClick={onClose}>
+            Zamknij
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
