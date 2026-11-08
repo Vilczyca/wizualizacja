@@ -17,6 +17,54 @@
   display: block;
 }
 
+.app-toolbar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+}
+
+.toolbar-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  /* Usuwamy ostrą, białą ramkę */
+  border: 1px solid rgba(255, 255, 255, 0.15); 
+  border-radius: 50%;
+  /* Półprzezroczyste tło i rozmycie chmury punktów pod spodem */
+  background-color: rgba(26, 26, 46, 0.7); 
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px); /* Wsparcie dla Safari */
+  color: #fff;
+  cursor: pointer;
+  transition: all 200ms ease;
+  /* Delikatny cień oddzielający od chmury punktów */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); 
+}
+
+.toolbar-button:hover {
+  /* Jasniejsze, ale wciąż półprzezroczyste na hover */
+  background-color: rgba(41, 41, 67, 0.9); 
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.toolbar-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 3px;
+}
+
+.toolbar-button svg {
+  width: 24px;
+  height: 24px;
+  /* Jeśli przejdziesz na ikony Solid, 'fill' i 'stroke' mogą nie być tu potrzebne,
+     react-icons same nadadzą im odpowiedni kolor z currentColor */
+}
 
 /* .counter {
   font-size: 16px;
