@@ -20,18 +20,21 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
           Nawigacja po scenie
         </h2>
         <p className="modal-description">
-          Użyj myszy lub ekranu dotykowego, aby obejrzeć chmurę punktów z
-          różnych stron.
+          Użyj myszy, aby obejrzeć chmurę punktów z różnych stron.
         </p>
 
         <ul className="controls-list">
           <li>
             <span className="control-action">Obrót</span>
-            <span className="control-input">Przeciągnij lewym przyciskiem myszy</span>
+            <span className="control-input">
+              Przeciągnij lewym przyciskiem myszy
+            </span>
           </li>
           <li>
             <span className="control-action">Przesuwanie</span>
-            <span className="control-input">Przeciągnij prawym przyciskiem</span>
+            <span className="control-input">
+              Przeciągnij prawym przyciskiem
+            </span>
           </li>
           <li>
             <span className="control-action">Przybliżanie</span>
