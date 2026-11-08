@@ -1,0 +1,85 @@
+﻿# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments (uv, venv, conda)
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Packaging, distribution and builds
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Data directories and datasets
+data/*
+!data/.gitkeep
+!data/README.md
+*.parquet
+*.arrow
+*.feather
+*.h5
+*.hdf5
+*.sqlite3
+
+# Model weights, checkpoints and cache (PyTorch, Transformers, HF)
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+*.onnx
+.cache/
+hf_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Testing, linting and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Environment variables, credentials and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs and debug output
+*.log
+logs/
+
+# IDEs and local editor configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
