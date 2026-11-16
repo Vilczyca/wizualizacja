@@ -1,0 +1,30 @@
+﻿# Python i środowiska
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+
+# Pliki systemowe i IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Zmienne środowiskowe
+.env
+.env.*
+!.env.example
+
+# Zbiory danych, cache HF, checkpointy i modele ML
+/data/
+/huggingface_cache/
+/raw_data/
+/checkpoints/
+/checkpoints_dry_run/
+/models/
+*.parquet
+*.arrow
+*.pkl
+*.jsonl
