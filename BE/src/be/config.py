@@ -41,6 +41,16 @@ class Settings:
     VIZ_DATA_PATH = BASE_DIR / (
         "viz_data_dry_run.arrow" if DRY_RUN else "viz_data.arrow"
     )
+    UPLOADS_DIR = BASE_DIR / "uploads"
+    USER_DB_PATH = BASE_DIR / "user_samples.db"
+    PREVIEW_MAX_WIDTH = 1280
+    THUMB_SIZE = (128, 128)
+
+    BASE_IMAGES_DIR = RAW_DATA_DIR / ("eval_images" if DRY_RUN else "train_images")
+    ATLASES_DIR = BASE_DIR / ("atlases_dry_run" if DRY_RUN else "atlases")
+    ATLAS_GRID_SIZE = 32
+    ATLAS_TILE_SIZE = 64
+    BASE_PREVIEW_MAX_WIDTH = 800
 
     MAX_IMAGE_SIZE_MB = 10
     CORS_ORIGINS = tuple(
