@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import subprocess
 import time
 import zipfile
 from pathlib import Path
@@ -136,13 +138,33 @@ def prepare_full_train_data() -> tuple[list[dict[str, Any]], Path]:
 
         zip_to_extract = full_zip if full_zip.exists() else split_zip
 
-        raise RuntimeError(
-            f"\n[BLOKADA] Archiwa są obecne w {RAW_DATA_DIR}, ale obrazy nie zostały jeszcze "
-            f"rozpakowane do {extract_dir}.\n"
-            f"Aby uniknąć błędów i przeciążenia pamięci, rozpakuj je ręcznie narzędziem np. 7-Zip lub WinRAR:\n"
-            f'  7z x "{zip_to_extract}" -o"{extract_dir}"\n'
-            f"Po zakończeniu rozpakowywania zrestartuj ten skrypt.\n"
-        )
+        seven_zip_bin = shutil.which("7z") or shutil.which("7za")
+        if seven_zip_bin:
+            print(
+                f"[INFO] Znaleziono 7-Zip ({seven_zip_bin}). "
+                f"Rozpakowywanie archiwum {zip_to_extract.name} do {extract_dir}..."
+            )
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                subprocess.run(
+                    [seven_zip_bin, "x", str(zip_to_extract), f"-o{extract_dir}", "-y"],
+                    check=True,
+                )
+                print(f"[SUKCES] Rozpakowano obrazy do {extract_dir}.")
+            except subprocess.CalledProcessError as err:
+                raise RuntimeError(
+                    f"Błąd podczas rozpakowywania 7-Zip: {err}. "
+                    f"Spróbuj rozpakować ręcznie poleceniem:\n"
+                    f'  7z x "{zip_to_extract}" -o"{extract_dir}" -y'
+                ) from err
+        else:
+            raise RuntimeError(
+                f"\n[BLOKADA] Archiwa są obecne w {RAW_DATA_DIR}, ale obrazy nie zostały jeszcze "
+                f"rozpakowane do {extract_dir}, a w systemie nie odnaleziono polecenia '7z'.\n"
+                f"Zainstaluj 7-Zip (np. 'sudo apt install p7zip-full') lub rozpakuj ręcznie:\n"
+                f'  7z x "{zip_to_extract}" -o"{extract_dir}"\n'
+                f"Po zakończeniu rozpakowywania zrestartuj ten skrypt.\n"
+            )
     else:
         print(f"[INFO] Używam już rozpakowanego katalogu z obrazami: {extract_dir}")
 
