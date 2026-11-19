@@ -62,6 +62,55 @@
   outline-offset: 3px;
 }
 
+.orientation-legend {
+  position: absolute;
+  bottom: 52px;
+  left: 156px;
+  z-index: 1;
+  display: grid;
+  gap: 5px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-control-surface);
+  box-shadow: var(--shadow-control);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.orientation-legend-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.orientation-legend-item::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  content: "";
+}
+
+.orientation-legend-item-x::before {
+  background: #a85b63;
+}
+
+.orientation-legend-item-y::before {
+  background: #6f9b78;
+}
+
+.orientation-legend-item-z::before {
+  background: #6686ad;
+}
+
 .app-toolbar {
   position: absolute;
   top: 20px;
