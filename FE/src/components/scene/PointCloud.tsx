@@ -1,18 +1,15 @@
 import { useMemo } from "react";
+import { Generator, inBox } from "maath/random";
 
 const DUMMY_COUNT = 10000;
 
 export function PointCloud() {
   const positions = useMemo(() => {
-    const values = new Float32Array(DUMMY_COUNT * 3);
-    let seed = 123456789;
-
-    for (let i = 0; i < values.length; i++) {
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      values[i] = (seed / 0x100000000 - 0.5) * 100;
-    }
-
-    return values;
+    return inBox(
+      new Float32Array(DUMMY_COUNT * 3),
+      { sides: 100, center: [0, 0, 0] },
+      new Generator(123456789),
+    ) as Float32Array;
   }, []);
 
   return (
