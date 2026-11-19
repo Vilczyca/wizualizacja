@@ -1,21 +1,45 @@
 import io
-import os
+import json
 import sqlite3
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
+from fastapi import (
+    Path as ApiPath,
+)
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, Response
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from be.config import settings
-from be.domain.schemas import UserSampleResponse
+from be.domain.schemas import (
+    ClusterInfo,
+    DatasetBounds,
+    DatasetMetaResponse,
+    SampleDetailResponse,
+    UserSampleResponse,
+)
 from be.infrastructure.database import (
     UserSampleRecord,
     insert_user_sample,
     list_user_samples,
+)
+from be.infrastructure.image_index import build_file_index, resolve_image_path
+from be.infrastructure.metadata_db import (
+    SampleRecord,
+    get_dataset_bounds,
+    get_sample_by_idx,
+    search_samples_fts,
 )
 from be.services.ml_service import ml_service
 from be.services.storage_service import StoredImageFiles, storage_service
@@ -37,6 +61,24 @@ def _to_response(record: UserSampleRecord) -> UserSampleResponse:
     )
 
 
+def _to_sample_detail(record: SampleRecord) -> SampleDetailResponse:
+    return SampleDetailResponse(
+        idx=record.idx,
+        sample_idx=record.sample_idx,
+        image_path=record.image_path,
+        image_url=f"/api/image?path={quote(record.image_path, safe='/')}",
+        video_id=record.video_id,
+        category=record.category,
+        caption=record.caption,
+        x=record.x,
+        y=record.y,
+        z=record.z,
+        cluster=record.cluster,
+        atlas_id=record.atlas_id,
+        tile_index=record.tile_index,
+    )
+
+
 def _decode_and_store(raw_bytes: bytes) -> StoredImageFiles:
     with Image.open(io.BytesIO(raw_bytes)) as img:
         return storage_service.save_image(img)
@@ -48,7 +90,13 @@ def _infer_stored_preview(filename: str) -> tuple[float, float, float]:
         return ml_service.infer_image(preview_img)
 
 
-@router.get("/viz-data", summary="Pobranie pełnej mapy wektorów 3D")
+def _load_clusters_list() -> list[dict]:
+    if not settings.CLUSTERS_PATH.exists():
+        return []
+    return json.loads(settings.CLUSTERS_PATH.read_text(encoding="utf-8"))
+
+
+@router.get("/viz-data", summary="Pobranie lekkiej mapy punktów 3D (Apache Arrow)")
 async def get_visualization_data():
     if not settings.VIZ_DATA_PATH.exists():
         raise HTTPException(
@@ -59,7 +107,100 @@ async def get_visualization_data():
         path=settings.VIZ_DATA_PATH,
         media_type="application/vnd.apache.arrow.file",
         filename="viz_data.arrow",
+        headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+@router.get(
+    "/meta",
+    response_model=DatasetMetaResponse,
+    summary="Konfiguracja sceny 3D, atlasów i zakresów współrzędnych",
+)
+async def get_dataset_meta():
+    if not settings.METADATA_DB_PATH.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Baza metadanych nie została jeszcze wygenerowana.",
+        )
+
+    total_points, bounds = await run_in_threadpool(get_dataset_bounds)
+    clusters = await run_in_threadpool(_load_clusters_list)
+    atlas_count = (
+        sum(1 for _ in settings.ATLASES_DIR.glob("atlas_*.webp"))
+        if settings.ATLASES_DIR.exists()
+        else 0
+    )
+
+    return DatasetMetaResponse(
+        total_points=total_points,
+        atlas_grid_size=settings.ATLAS_GRID_SIZE,
+        atlas_tile_size=settings.ATLAS_TILE_SIZE,
+        atlas_count=atlas_count,
+        clusters_count=len(clusters),
+        bounds=DatasetBounds(**bounds),
+    )
+
+
+@router.get(
+    "/clusters",
+    response_model=list[ClusterInfo],
+    summary="Lista klastrów KMeans wraz z kolorami i liczebnością",
+)
+async def get_clusters():
+    clusters = await run_in_threadpool(_load_clusters_list)
+    return [ClusterInfo(**c) for c in clusters]
+
+
+@router.get(
+    "/samples/{idx}",
+    response_model=SampleDetailResponse,
+    summary="Pobranie pełnych metadanych pojedynczego punktu na żądanie",
+)
+async def get_sample_detail(
+    idx: Annotated[int, ApiPath(ge=0, description="Indeks punktu w viz_data.arrow")],
+):
+    try:
+        record = await run_in_threadpool(get_sample_by_idx, idx)
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail="Baza metadanych nie została jeszcze wygenerowana.",
+        ) from e
+
+    if record is None:
+        raise HTTPException(
+            status_code=404, detail="Nie znaleziono punktu o podanym indeksie."
+        )
+
+    return _to_sample_detail(record)
+
+
+@router.get(
+    "/search",
+    response_model=list[SampleDetailResponse],
+    summary="Wyszukiwanie pełnotekstowe (SQLite FTS5) po opisach, kategoriach i nazwach plików",
+)
+async def search_samples(
+    q: Annotated[
+        str, Query(min_length=1, max_length=200, description="Fraza wyszukiwania")
+    ],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cluster: Annotated[int | None, Query(ge=0)] = None,
+):
+    try:
+        records = await run_in_threadpool(search_samples_fts, q, limit, offset, cluster)
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail="Baza metadanych nie została jeszcze wygenerowana.",
+        ) from e
+    except sqlite3.Error as e:
+        raise HTTPException(
+            status_code=400, detail=f"Błąd zapytania wyszukiwania: {e!s}"
+        ) from e
+
+    return [_to_sample_detail(record) for record in records]
 
 
 @router.get(
@@ -134,26 +275,7 @@ async def infer_new_sample(
 
 @lru_cache(maxsize=1)
 def _get_base_image_indexes() -> tuple[dict[str, Path], dict[str, Path]]:
-    base_dir = settings.BASE_IMAGES_DIR.resolve()
-    suffix_index: dict[str, Path] = {}
-    basename_index: dict[str, Path] = {}
-
-    if not base_dir.exists():
-        return suffix_index, basename_index
-
-    for root, _, files in os.walk(base_dir):
-        root_path = Path(root)
-        for fname in files:
-            full_path = root_path / fname
-            rel_posix = full_path.relative_to(base_dir).as_posix().lower()
-            parts = rel_posix.split("/")
-            suffix_index[rel_posix] = full_path
-            if len(parts) >= 2:
-                tail_two = "/".join(parts[-2:])
-                suffix_index.setdefault(tail_two, full_path)
-            basename_index.setdefault(fname.lower(), full_path)
-
-    return suffix_index, basename_index
+    return build_file_index(settings.BASE_IMAGES_DIR.resolve())
 
 
 def _resolve_safe_base_image(rel_path: str) -> Path:
@@ -170,17 +292,7 @@ def _resolve_safe_base_image(rel_path: str) -> Path:
         return candidate
 
     suffix_index, basename_index = _get_base_image_indexes()
-    norm = clean_rel.lower()
-    if norm in suffix_index:
-        return suffix_index[norm]
-
-    parts = norm.split("/")
-    if len(parts) >= 2:
-        tail_two = "/".join(parts[-2:])
-        if tail_two in suffix_index:
-            return suffix_index[tail_two]
-
-    resolved = basename_index.get(parts[-1])
+    resolved = resolve_image_path(clean_rel, suffix_index, basename_index)
     if resolved is not None and resolved.is_file():
         return resolved
 
@@ -189,6 +301,8 @@ def _resolve_safe_base_image(rel_path: str) -> Path:
 
 def _render_base_preview(image_path: Path) -> bytes:
     with Image.open(image_path) as img:
+        draft_dim = settings.BASE_PREVIEW_MAX_WIDTH * 2
+        img.draft("RGB", (draft_dim, draft_dim))
         rgb_img = ImageOps.exif_transpose(img).convert("RGB")
         rgb_img.thumbnail(
             (settings.BASE_PREVIEW_MAX_WIDTH, settings.BASE_PREVIEW_MAX_WIDTH),

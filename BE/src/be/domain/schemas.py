@@ -39,3 +39,39 @@ class UserSampleResponse(BaseModel):
             }
         }
     )
+
+
+class SampleDetailResponse(BaseModel):
+    idx: int = Field(..., description="Indeks punktu w pliku viz_data.arrow")
+    sample_idx: str = Field(..., description="Oryginalny identyfikator próbki")
+    image_path: str = Field(..., description="Względna ścieżka obrazu w zbiorze")
+    image_url: str = Field(..., description="Gotowy adres URL podglądu WebP")
+    video_id: str = Field(default="", description="Identyfikator wideo YouTube")
+    category: str = Field(default="", description="Kategoria obrazu")
+    caption: str = Field(default="", description="Pełny opis tekstowy kadru")
+    x: float
+    y: float
+    z: float
+    cluster: int = Field(..., description="ID klastra KMeans")
+    atlas_id: int = Field(..., description="ID pliku atlasu WebP (-1 jeśli brak)")
+    tile_index: int = Field(..., description="Indeks kafelka w atlasie (-1 jeśli brak)")
+
+
+class ClusterInfo(BaseModel):
+    id: int
+    color: str
+    count: int
+
+
+class DatasetBounds(BaseModel):
+    min: list[float]
+    max: list[float]
+
+
+class DatasetMetaResponse(BaseModel):
+    total_points: int
+    atlas_grid_size: int
+    atlas_tile_size: int
+    atlas_count: int
+    clusters_count: int
+    bounds: DatasetBounds
