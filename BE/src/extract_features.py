@@ -49,23 +49,44 @@ def extract_caption(record: dict[str, Any]) -> str:
     return ""
 
 
-def prepare_dry_run_data() -> tuple[list[dict[str, Any]], Path]:
-    """Pobiera eval.jsonl i rozpakowuje podzbiór eval_images.zip."""
-    jsonl_path = Path(
-        hf_hub_download(repo_id=DATASET_ID, filename="eval.jsonl", repo_type="dataset")
-    )
-    zip_path = Path(
-        hf_hub_download(
-            repo_id=DATASET_ID, filename="eval_images.zip", repo_type="dataset"
-        )
-    )
+def get_dataset_file(filename: str) -> Path:
+    """Zwraca ścieżkę do pliku datasetu.
 
+    Najpierw sprawdza, czy plik istnieje lokalnie w RAW_DATA_DIR.
+    Dopiero w razie braku pliku pobiera go z Hugging Face Hub do RAW_DATA_DIR.
+    """
+    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    local_path = RAW_DATA_DIR / filename
+    if local_path.exists() and local_path.stat().st_size > 0:
+        print(f"[INFO] Używam istniejącego pliku lokalnego: {local_path}")
+        return local_path
+
+    print(
+        f"[INFO] Plik {filename} nie został znaleziony w {RAW_DATA_DIR}. "
+        f"Pobieranie z Hugging Face ({DATASET_ID})..."
+    )
+    downloaded = hf_hub_download(
+        repo_id=DATASET_ID,
+        filename=filename,
+        repo_type="dataset",
+        local_dir=str(RAW_DATA_DIR),
+    )
+    return Path(downloaded)
+
+
+def prepare_dry_run_data() -> tuple[list[dict[str, Any]], Path]:
+    """Wczytuje/pobiera eval.jsonl i rozpakowuje podzbiór eval_images.zip (jeśli nie rozpakowany)."""
+    jsonl_path = get_dataset_file("eval.jsonl")
     extract_dir = RAW_DATA_DIR / "eval_images"
+
     if not extract_dir.exists() or not any(extract_dir.iterdir()):
+        zip_path = get_dataset_file("eval_images.zip")
         print(f"[INFO] Rozpakowywanie {zip_path.name} do {extract_dir}...")
         extract_dir.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zip_path, "r") as zf:
             zf.extractall(extract_dir)
+    else:
+        print(f"[INFO] Używam już rozpakowanego katalogu: {extract_dir}")
 
     records: list[dict[str, Any]] = []
     with jsonl_path.open("r", encoding="utf-8") as f:
@@ -88,14 +109,10 @@ def prepare_dry_run_data() -> tuple[list[dict[str, Any]], Path]:
 
 
 def prepare_full_train_data() -> tuple[list[dict[str, Any]], Path]:
-    """Pobiera metadane z conversations.json, zgłasza brak rozpakowanego 62 GB ZIP-a
+    """Wczytuje/pobiera metadane z conversations.json, zgłasza brak rozpakowanego 62 GB ZIP-a
     i zwraca pre-deduplikowaną listę metadanych z usuniętymi powtórzeniami obrazów.
     """
-    conv_path = Path(
-        hf_hub_download(
-            repo_id=DATASET_ID, filename="conversations.json", repo_type="dataset"
-        )
-    )
+    conv_path = get_dataset_file("conversations.json")
     extract_dir = RAW_DATA_DIR / "train_images"
 
     if not extract_dir.exists() or not any(extract_dir.iterdir()):
@@ -107,21 +124,27 @@ def prepare_full_train_data() -> tuple[list[dict[str, Any]], Path]:
             "images.z05",
             "images.zip",
         ]
-        print("[INFO] Pobieranie wieloczęściowego archiwum obrazów (~61.8 GB)...")
-        local_zip_path: Path | None = None
-        for fname in archive_files:
-            downloaded = Path(
-                hf_hub_download(repo_id=DATASET_ID, filename=fname, repo_type="dataset")
-            )
-            if fname == "images.zip":
-                local_zip_path = downloaded
+        full_zip = RAW_DATA_DIR / "images_full.zip"
+        split_zip = RAW_DATA_DIR / "images.zip"
+
+        if not full_zip.exists() and not all(
+            (RAW_DATA_DIR / f).exists() for f in archive_files
+        ):
+            print("[INFO] Sprawdzanie i pobieranie brakujących części archiwum...")
+            for fname in archive_files:
+                get_dataset_file(fname)
+
+        zip_to_extract = full_zip if full_zip.exists() else split_zip
 
         raise RuntimeError(
-            f"\n[BLOKADA] Archiwa pobrane. Aby uniknąć błędów Pylint/ZipFile dla woluminów dzielonych, "
-            f"musisz je ręcznie rozpakować narzędziem np. 7-Zip lub WinRAR. Użyj komendy:\n"
-            f'  7z x "{local_zip_path}" -o"{extract_dir}"\n'
+            f"\n[BLOKADA] Archiwa są obecne w {RAW_DATA_DIR}, ale obrazy nie zostały jeszcze "
+            f"rozpakowane do {extract_dir}.\n"
+            f"Aby uniknąć błędów i przeciążenia pamięci, rozpakuj je ręcznie narzędziem np. 7-Zip lub WinRAR:\n"
+            f'  7z x "{zip_to_extract}" -o"{extract_dir}"\n'
             f"Po zakończeniu rozpakowywania zrestartuj ten skrypt.\n"
         )
+    else:
+        print(f"[INFO] Używam już rozpakowanego katalogu z obrazami: {extract_dir}")
 
     print(f"[INFO] Wczytywanie i deduplikacja {conv_path.name} (~3.4 GB JSON)...")
     start_parse = time.perf_counter()
