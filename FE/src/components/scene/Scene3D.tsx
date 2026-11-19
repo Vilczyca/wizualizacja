@@ -30,12 +30,17 @@ function zoomToDistance(zoom: number) {
 export function Scene3D() {
   const controlsRef = useRef<ComponentRef<typeof OrbitControls>>(null);
   const [zoom, setZoom] = useState(distanceToZoom(50));
+  const [cameraPosition, setCameraPosition] = useState<[number, number, number]>([
+    0, 0, 50,
+  ]);
   const [isGizmoHovered, setIsGizmoHovered] = useState(false);
 
   const handleControlsChange = () => {
     const controls = controlsRef.current;
     if (controls) {
       setZoom(distanceToZoom(controls.object.position.distanceTo(controls.target)));
+      const { x, y, z } = controls.object.position;
+      setCameraPosition([x, y, z]);
     }
   };
 
@@ -87,7 +92,7 @@ export function Scene3D() {
           onChange={handleControlsChange}
         />
 
-        <PointCloud />
+        <PointCloud cameraPosition={cameraPosition} />
 
         <GizmoHelper
           alignment="bottom-left"
