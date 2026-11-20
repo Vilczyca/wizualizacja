@@ -26,7 +26,6 @@ CLUSTERS_PATH = settings.CLUSTERS_PATH
 
 
 def _load_embeddings_float32(col: pa.ChunkedArray) -> np.ndarray:
-    """Konwertuje kolumnę embeddingów Arrow bezpośrednio do ciągłej macierzy Float32."""
     arr = col.combine_chunks()
     n_rows = len(arr)
     if pa.types.is_fixed_size_list(arr.type):

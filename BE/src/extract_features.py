@@ -34,7 +34,6 @@ BASE_OUTPUT_DIR = settings.CHECKPOINTS_DIR
 
 
 def extract_caption(record: dict[str, Any]) -> str:
-    """Wyciąga opis tekstowy ze struktury LLaVA/VideoGameBunny."""
     if record.get("short_caption"):
         return str(record["short_caption"])
     if record.get("text"):
@@ -52,11 +51,7 @@ def extract_caption(record: dict[str, Any]) -> str:
 
 
 def get_dataset_file(filename: str) -> Path:
-    """Zwraca ścieżkę do pliku datasetu.
 
-    Najpierw sprawdza, czy plik istnieje lokalnie w RAW_DATA_DIR.
-    Dopiero w razie braku pliku pobiera go z Hugging Face Hub do RAW_DATA_DIR.
-    """
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     local_path = RAW_DATA_DIR / filename
     if local_path.exists() and local_path.stat().st_size > 0:
@@ -77,7 +72,6 @@ def get_dataset_file(filename: str) -> Path:
 
 
 def prepare_dry_run_data() -> tuple[list[dict[str, Any]], Path]:
-    """Wczytuje/pobiera eval.jsonl i rozpakowuje podzbiór eval_images.zip (jeśli nie rozpakowany)."""
     jsonl_path = get_dataset_file("eval.jsonl")
     extract_dir = RAW_DATA_DIR / "eval_images"
 
@@ -111,9 +105,7 @@ def prepare_dry_run_data() -> tuple[list[dict[str, Any]], Path]:
 
 
 def prepare_full_train_data() -> tuple[list[dict[str, Any]], Path]:
-    """Wczytuje/pobiera metadane z conversations.json, zgłasza brak rozpakowanego 62 GB ZIP-a
-    i zwraca pre-deduplikowaną listę metadanych z usuniętymi powtórzeniami obrazów.
-    """
+
     conv_path = get_dataset_file("conversations.json")
     extract_dir = RAW_DATA_DIR / "train_images"
 
@@ -191,9 +183,7 @@ def prepare_full_train_data() -> tuple[list[dict[str, Any]], Path]:
 def apply_resume_filter(
     records: list[dict[str, Any]], checkpoints_dir: Path
 ) -> tuple[list[dict[str, Any]], int]:
-    """Odfiltrowuje z rekordów obrazy, które zostały już wyekstrahowane w plikach Parquet,
-    i zwraca przyciętą listę oraz następny indeks pliku (checkpoint_idx).
-    """
+
     if not checkpoints_dir.exists():
         return records, 1
 
@@ -228,8 +218,6 @@ def apply_resume_filter(
 
 
 class VideoGameBunnyDataset(Dataset):
-    """Dataset indeksujący pliki obrazów na dysku NVMe i dopasowujący je po względnej ścieżce."""
-
     def __init__(self, records: list[dict[str, Any]], images_root: Path) -> None:
         self.records = records
         self.images_root = images_root
@@ -293,7 +281,6 @@ class VideoGameBunnyDataset(Dataset):
         except (OSError, UnidentifiedImageError):
             return None
 
-        # Oryginalny id obrazu z datasetu (do parowania podczas sanity-checków)
         sample_id_from_id = record.get("id") or str(idx)
         return {
             "sample_idx": sample_id_from_id,
@@ -305,8 +292,6 @@ class VideoGameBunnyDataset(Dataset):
 
 
 class ClipCollator:
-    """Wielowątkowy collator przygotowujący paczki tensorów na CPU."""
-
     def __init__(self, model_id: str) -> None:
         self.model_id = model_id
         self.processor: CLIPProcessor | None = None
@@ -367,18 +352,14 @@ def main() -> None:
     )
     print(f"[START] Tryb: {mode_label} | GPU: {torch.cuda.get_device_name(0)}")
 
-    # 1. Pozyskanie deduplikowanych metadanych JSON
     records, images_root = (
         prepare_dry_run_data() if DRY_RUN else prepare_full_train_data()
     )
 
-    # 2. Mechanizm wznawiania: odfiltrowanie obrazów już obecnych w Parquetach
     records, start_ckpt_idx = apply_resume_filter(records, BASE_OUTPUT_DIR)
 
     if not records:
-        print(
-            "[SUKCES] Brak pozostałych obrazów do przetworzenia. Wszystko w Parquetach."
-        )
+        print("[SUKCES] Brak pozostałych obrazów do przetworzenia.")
         return
 
     model = CLIPModel.from_pretrained(MODEL_ID, torch_dtype=torch.float16).to(DEVICE)
