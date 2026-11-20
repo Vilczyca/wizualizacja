@@ -10,7 +10,6 @@ OUTPUT_FILE = settings.RAW_EMBEDDINGS_PATH
 
 
 def merge_parquet_checkpoints(checkpoints_dir: Path, output_file: Path) -> pd.DataFrame:
-    """Łączy wszystkie pliki checkpointów Parquet w jedną zweryfikowaną ramkę danych."""
     ckpt_files = sorted(checkpoints_dir.glob("features_ckpt_*.parquet"))
     if not ckpt_files:
         raise FileNotFoundError(
@@ -44,7 +43,6 @@ def merge_parquet_checkpoints(checkpoints_dir: Path, output_file: Path) -> pd.Da
 def run_cosine_similarity_sanity_check(
     df: pd.DataFrame, query_idx: int = 0, top_k: int = 3
 ) -> None:
-    """Sprawdza sensowność semantyczną embeddingów na podstawie podobieństwa cosinusowego."""
     matrix = np.vstack(df["embedding"].to_numpy()).astype(np.float32)
     norms = np.linalg.norm(matrix, axis=1, keepdims=True)
     normalized = matrix / np.maximum(norms, 1e-12)
@@ -53,7 +51,7 @@ def run_cosine_similarity_sanity_check(
         raise ValueError("Macierz wektorów zawiera wartości NaN po normalizacji!")
 
     similarities = normalized @ normalized[query_idx]
-    # Pomijamy sam obraz zapytania (indeks query_idx)
+
     sorted_indices = np.argsort(similarities)[::-1]
     most_similar = [idx for idx in sorted_indices if idx != query_idx][:top_k]
     least_similar = sorted_indices[-top_k:][::-1]

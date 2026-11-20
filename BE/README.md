@@ -7,19 +7,22 @@ Backend odpowiedzialny za ekstrakcję cech wizualnych z kadrów gier wideo przy 
 ```text
 BE/
 ├── src/
-│   ├── be/                        # Aplikacja webowa FastAPI
-│   │   ├── api/routes.py          # Endpointy REST: /api/viz-data oraz /api/infer
-│   │   ├── domain/schemas.py      # Modele walidacji danych Pydantic v2
-│   │   ├── services/ml_service.py # Singleton utrzymujący modele CLIP i UMAP w pamięci
-│   │   ├── config.py              # Centralna konfiguracja ścieżek i zmiennych środowiskowych
-│   │   └── main.py                # Punkt wejścia aplikacji ASGI oraz konfiguracja CORS
-│   ├── extract_features.py        # Etap 1: Ekstrakcja 512D embeddingów CLIP do plików Parquet
-│   ├── merge_checkpoints.py       # Etap 1b: Scalanie checkpointów, deduplikacja i weryfikacja
-│   └── train_reducer.py           # Etap 2: Trening modelu UMAP 3D i eksport .pkl oraz .arrow
-├── .env.example                   # Szablon zmiennych środowiskowych
-├── .gitignore                     # Wykluczenia artefaktów ML, cache oraz plików lokalnych
-├── pyproject.toml                 # Zależności projektu i konfiguracja lintera Ruff
-└── uv.lock                        # Zablokowane wersje pakietów
+│   ├── be/                           # Aplikacja webowa FastAPI
+│   │   ├── api/routes.py             # Endpointy REST API (/api/*)
+│   │   ├── domain/schemas.py         # Modele walidacji danych Pydantic v2
+│   │   ├── infrastructure/           # SQLite (user_samples.db, metadata.db + FTS5), indeks plików
+│   │   ├── services/                 # MLService (CLIP + PCA/UMAP) oraz ImageStorageService
+│   │   ├── config.py                 # Centralna konfiguracja ścieżek i zmiennych środowiskowych
+│   │   └── main.py                   # Punkt wejścia aplikacji ASGI, GZip i CORS
+│   ├── extract_features.py           # Etap 1: Ekstrakcja 512D embeddingów CLIP do plików Parquet
+│   ├── merge_checkpoints.py          # Etap 1b: Scalanie checkpointów, deduplikacja i weryfikacja
+│   ├── train_reducer.py              # Etap 2: PCA -> UMAP 3D, KMeans, metadata.db i lekki viz_data.arrow
+│   └── generate_atlases.py           # Etap 3: Generowanie atlasów miniatur WebP
+├── API.md                            # Pełna dokumentacja endpointów REST dla frontendu
+├── .env.example                      # Szablon zmiennych środowiskowych
+├── .gitignore                        # Wykluczenia artefaktów ML, cache oraz plików lokalnych
+├── pyproject.toml                    # Zależności projektu i konfiguracja lintera Ruff
+└── uv.lock                           # Zablokowane wersje pakietów
 ```
 
 ## Wymagania wstępne
@@ -74,10 +77,13 @@ Aby polecenia uruchamiane przez `uv run` wczytywały lokalną konfigurację, nal
 
 ## 3. Uruchomienie serwera API
 
-Uruchomienie samego serwera API bez ponownego przeliczania całego zbioru danych wymaga umieszczenia dwóch wygenerowanych artefaktów wewnątrz katalogu wskazanego przez `VIZ_DATA_DIR`:
+Uruchomienie samego serwera API bez ponownego przeliczania całego zbioru danych wymaga wygenerowanych artefaktów wewnątrz katalogu wskazanego przez `VIZ_DATA_DIR`:
 
-* `viz_data.arrow`: zredukowana mapa punktów 3D wraz z metadanymi dla wykresu.
-* `models/umap_reducer.pkl`: zapisany model UMAP rzutujący nowe obrazy na istniejącą przestrzeń.
+* `viz_data.arrow`: lekka mapa punktów 3D (`x`, `y`, `z`, `cluster`, `atlas_id`, `tile_index`, ok. 2,4 MB).
+* `metadata.db`: baza SQLite + FTS5 z pełnymi metadanymi punktów (pobierane leniwie przez `/api/samples/{idx}` i `/api/search`).
+* `clusters.json`: definicje klastrów KMeans (kolory i liczebności).
+* `models/umap_reducer.pkl`: zapisany potok `PCA → UMAP` rzutujący nowe obrazy na istniejącą przestrzeń.
+* `atlases/atlas_*.webp`: atlasy tekstur WebP z miniaturami 64×64.
 
 Start serwera lokalnego odbywa się poleceniem:
 
@@ -85,11 +91,18 @@ Start serwera lokalnego odbywa się poleceniem:
 uv run --env-file .env uvicorn be.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Po uruchomieniu dostępne są następujące zasoby:
+Po uruchomieniu dostępne są następujące zasoby (szczegółowe przykłady żądań i odpowiedzi znajdują się w [API.md](./API.md)):
 
-* `http://localhost:8000/docs`: interaktywna dokumentacja OpenAPI Swagger UI umożliwiająca testowanie zapytań z poziomu przeglądarki.
-* `GET /api/viz-data`: zwraca binarny plik Apache Arrow ze współrzędnymi `x`, `y`, `z` oraz metadanymi wszystkich kadrów.
-* `POST /api/infer`: przyjmuje plik graficzny w formacie `multipart/form-data` pod kluczem `file` o maksymalnym rozmiarze 10 MB i zwraca obiekt JSON ze współrzędnymi `x`, `y`, `z` w przestrzeni 3D.
+* `http://localhost:8000/docs`: interaktywna dokumentacja OpenAPI Swagger UI.
+* `GET /api/meta`: konfiguracja sceny, atlasów i zakresów współrzędnych 3D.
+* `GET /api/viz-data`: lekki plik Apache Arrow z punktami 3D (`x`, `y`, `z`, `cluster`, `atlas_id`, `tile_index`).
+* `GET /api/clusters`: lista klastrów z kolorami HEX i liczebnością.
+* `GET /api/samples/{idx}`: pełne metadane pojedynczego punktu pobierane na żądanie.
+* `GET /api/search?q=...`: wyszukiwanie pełnotekstowe FTS5 po opisach, kategoriach i nazwach plików.
+* `GET /api/image?path=...`: podgląd pojedynczego kadru ze zbioru bazowego (WebP).
+* `GET /api/atlases/{filename}`: statyczne atlasy miniatur WebP.
+* `GET /api/user-samples` oraz `GET /api/uploads/{filename}`: próbki dodane przez użytkowników.
+* `POST /api/infer`: upload obrazu (`multipart/form-data`), wyliczenie współrzędnych 3D i zapis próbki.
 
 ## 4. Odtworzenie potoku ML od zera
 
